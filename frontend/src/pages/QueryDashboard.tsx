@@ -14,6 +14,8 @@ interface QueryResult {
   section_filter?: string;
 }
 
+import './QueryDashboard.css';
+
 export const QueryDashboard: React.FC = () => {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);

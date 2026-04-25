@@ -70,7 +70,7 @@ async def health_check(
 ):
     """
     Check connectivity to all backing services.
-    Returns status of: PostgreSQL, ChromaDB, Neo4j, Gemini API.
+    Returns status of: PostgreSQL, ChromaDB, Neo4j.
     """
     health = {}
 
@@ -86,9 +86,6 @@ async def health_check(
 
     # Neo4j (stub — will connect in Phase 2)
     health["neo4j"] = "not_connected (Phase 2)"
-
-    # Gemini (stub — will connect in Phase 2)
-    health["gemini"] = "not_connected (Phase 2)"
 
     overall = "ok" if all(v == "ok" or "Phase 2" in v for v in health.values()) else "degraded"
     return {"status": overall, "services": health}
