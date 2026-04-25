@@ -1,0 +1,75 @@
+[project]
+name = "graphrag-backend"
+version = "1.0.0"
+description = "Metadata-Aware GraphRAG Knowledge Base — FastAPI Backend"
+requires-python = ">=3.13"
+
+# ── Phase 1 core dependencies (PostgreSQL + FastAPI) ─────────────────────────
+dependencies = [
+    # Web Framework
+    # fastapi 0.115+ ships starlette 0.41+ which has Python 3.13 wheels
+    "fastapi==0.115.6",
+    "uvicorn[standard]==0.32.1",
+    "python-multipart==0.0.12",
+
+    # Database (Async PostgreSQL)
+    # asyncpg 0.30.0  = first release with Python 3.13 support
+    # psycopg2-binary 2.9.10 = first release with Python 3.13 cp313 wheels
+    # greenlet 3.1.1  = first release with Python 3.13 support
+    "sqlalchemy[asyncio]==2.0.36",
+    "asyncpg==0.30.0",
+    "psycopg2-binary==2.9.10",
+    "greenlet==3.1.1",
+
+    # Migrations
+    "alembic==1.14.0",
+
+    # Validation & Settings
+    # pydantic 2.9+ ships pydantic-core 2.23+ (pyo3 0.22+) → Python 3.13 support
+    # pydantic 2.7.x used pydantic-core 2.18.x (pyo3 0.21.x) which tops out at 3.12
+    "pydantic==2.10.3",
+    "pydantic-settings==2.7.0",
+    "python-dotenv==1.0.1",
+    "email-validator==2.2.0",
+
+    # Auth
+    # passlib 1.7.4 is abandoned and broken with bcrypt 4.x on Python 3.13
+    # Using bcrypt directly instead — simpler and actively maintained
+    "python-jose[cryptography]==3.3.0",
+    "bcrypt==4.2.1",
+
+    # Utilities
+    "httpx==0.28.1",
+    "tenacity==9.0.0",
+]
+
+# ── Phase 2 optional — install when ready: uv sync --extra ai ────────────────
+[project.optional-dependencies]
+ai = [
+    # chromadb 0.5.4+ has Python 3.13 wheels
+    "chromadb>=0.5.4",
+    "neo4j==5.20.0",
+    "google-generativeai==0.5.4",
+]
+
+# ── Dev dependencies ──────────────────────────────────────────────────────────
+[dependency-groups]
+dev = [
+    "pytest==8.2.0",
+    "pytest-asyncio==0.23.6",
+    # httpx is already in main dependencies — no need to repeat it here
+]
+
+# ── Usage ─────────────────────────────────────────────────────────────────────
+# uv sync                        →  install Phase 1 core (Python 3.13)
+# uv sync --extra ai             →  also ChromaDB / Neo4j / Gemini
+# uv run uvicorn app.main:app --reload --port 8080
+# uv run alembic upgrade head
+
+# ── Build ─────────────────────────────────────────────────────────────────────
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]

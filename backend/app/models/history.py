@@ -1,0 +1,153 @@
+"""
+app/models/history.py
+─────────────────────
+EditHistory — immutable audit log for every create/update/delete on
+              tables, columns, and sections.
+
+Key design decisions:
+  - before_state / after_state are JSONB full snapshots (not diffs).
+    This means no rollback logic needed — history is read-only.
+  - entity_id is a plain UUID (not a FK) so deleted entities still
+    have a traceable history record.
+  - Append-only — no UPDATE or DELETE on this table ever.
+
+QueryHistory — per-user log of NL questions and the results returned.
+  - Private to the owning user.
+  - Stores the full result as JSONB for replay/display.
+  - Captures optional SQL that was generated.
+  - Supports thumbs-up/thumbs-down feedback for future fine-tuning.
+"""
+
+import enum
+import uuid
+from datetime import datetime, timezone
+
+from sqlalchemy import DateTime, Enum, ForeignKey, String, Text
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.db.postgres import Base
+
+
+# ── Enums ─────────────────────────────────────────────────────────────────────
+class EntityType(str, enum.Enum):
+    TABLE = "table"
+    COLUMN = "column"
+    SECTION = "section"
+
+
+class ActionType(str, enum.Enum):
+    CREATE = "create"
+    UPDATE = "update"
+    DELETE = "delete"
+
+
+class FeedbackType(str, enum.Enum):
+    POSITIVE = "positive"
+    NEGATIVE = "negative"
+    NONE = "none"
+
+
+# ── EditHistory ───────────────────────────────────────────────────────────────
+class EditHistory(Base):
+    """
+    Global, append-only audit trail of all knowledge-base changes.
+    Visible to all users (scoped by their role in the API layer).
+    """
+    __tablename__ = "edit_history"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    entity_type: Mapped[EntityType] = mapped_column(
+        Enum(EntityType, name="entity_type_enum", create_type=True,
+             values_callable=lambda x: [e.value for e in x]),
+        nullable=False, index=True
+    )
+    # UUID of the affected table / column / section — not a FK so history
+    # survives even if the entity is later hard-deleted.
+    entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    # Human-readable name of the entity at the time of the change
+    entity_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    action: Mapped[ActionType] = mapped_column(
+        Enum(ActionType, name="action_type_enum", create_type=True,
+             values_callable=lambda x: [e.value for e in x]),
+        nullable=False, index=True
+    )
+
+    # Who made the change
+    changed_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    changed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
+        nullable=False, index=True
+    )
+
+    # Full JSON snapshots — null for CREATE (no before) and DELETE (no after)
+    before_state: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    after_state: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
+    # e.g. "Updated description of column 'txn_amount' in table 'credit_card_txn'"
+    change_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # ── Relationships ──────────────────────────────────────────
+    changed_by_user = relationship(
+        "User", back_populates="edit_histories", foreign_keys=[changed_by]
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<EditHistory {self.action.value} {self.entity_type.value} "
+            f"id={self.entity_id} by={self.changed_by}>"
+        )
+
+
+# ── QueryHistory ──────────────────────────────────────────────────────────────
+class QueryHistory(Base):
+    """
+    Per-user history of NL queries submitted to the system.
+    Strictly private — only the owning user (and admin) can see these.
+    """
+    __tablename__ = "query_history"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False, index=True
+    )
+
+    # The original natural-language question
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # Which section was selected at query time (null = all sections)
+    section_filter: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+    # Full result payload as returned by the query engine
+    # Structure: { primary_results: [...], cross_section_expansions: [...], explanation: "..." }
+    result_tables: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
+    # SQL generated by Gemini (if include_sql=true was requested)
+    generated_sql: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # User feedback on the result quality
+    feedback: Mapped[FeedbackType] = mapped_column(
+        Enum(FeedbackType, name="feedback_type_enum", create_type=True,
+             values_callable=lambda x: [e.value for e in x]),
+        default=FeedbackType.NONE,
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
+        nullable=False, index=True
+    )
+
+    # ── Relationships ──────────────────────────────────────────
+    user = relationship("User", back_populates="query_histories", foreign_keys=[user_id])
+
+    def __repr__(self) -> str:
+        return f"<QueryHistory user={self.user_id} q={self.question[:40]!r}>"

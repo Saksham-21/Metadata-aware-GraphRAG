@@ -1,0 +1,116 @@
+.query-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.dashboard-header {
+  text-align: center;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+.dashboard-header h1 {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.search-card {
+  padding: 1rem !important;
+  border-radius: 20px;
+}
+
+.search-form {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem;
+}
+
+.search-icon {
+  color: var(--text-muted);
+  margin-left: 0.5rem;
+}
+
+.search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-main);
+  font-size: 1.25rem;
+  padding: 0.5rem;
+  outline: none;
+}
+
+.search-input::placeholder {
+  color: rgba(160, 170, 191, 0.5);
+}
+
+.search-btn {
+  background: var(--accent-gradient);
+  color: #fff;
+  border: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 15px rgba(0, 240, 255, 0.2);
+}
+
+.search-btn:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 20px rgba(0, 240, 255, 0.4);
+}
+
+.search-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error-banner {
+  background: rgba(255, 77, 79, 0.1);
+  border: 1px solid rgba(255, 77, 79, 0.3);
+  color: #ff4d4f;
+  padding: 1rem;
+  border-radius: 12px;
+}
+
+.results-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+  color: var(--text-main);
+}
+
+.icon-cyan { color: var(--accent-cyan); }
+.icon-purple { color: var(--accent-purple); }
+
+.explanation-text {
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.sql-card {
+  border-color: rgba(178, 0, 255, 0.2) !important;
+}
+
+.sql-code {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 1.5rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-family: 'Courier New', Courier, monospace;
+  color: var(--accent-cyan);
+}
